@@ -1,0 +1,8 @@
+api:
+  listen: ":1985"
+
+rtsp:
+  listen: ":8556"
+
+streams:
+  front_door_cam: http://192.168.50.152:81/stream

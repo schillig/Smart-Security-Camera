@@ -1,0 +1,11 @@
+# Ignore ESP32 build and cache files
+firmware/build/
+firmware/managed_components/
+firmware/dependencies.lock
+firmware/.vscode/
+
+# Ignore the compiled go2rtc executable (we will just download it fresh on the new OS)
+bridge/go2rtc_linux_amd64
+
+# Ignore OS junk files
+.DS_Store
