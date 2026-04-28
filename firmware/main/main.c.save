@@ -109,7 +109,7 @@ static esp_err_t init_camera(void) {
 }
 
 // -------------------------------------------------------------
-// HTTP API: Endpoint 1 (/stream) - Port 81
+// HTTP API: Endpoint 1 (/stream)
 // -------------------------------------------------------------
 static esp_err_t stream_handler(httpd_req_t *req) {
     camera_fb_t * fb = NULL;
@@ -141,7 +141,7 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 }
 
 // -------------------------------------------------------------
-// HTTP API: Endpoint 2 (/control) - Port 80
+// HTTP API: Endpoint 2 (/control)
 // -------------------------------------------------------------
 static esp_err_t cmd_handler(httpd_req_t *req) {
     char* buf;
@@ -195,14 +195,15 @@ static esp_err_t cmd_handler(httpd_req_t *req) {
 }
 
 // -------------------------------------------------------------
-// HTTP API: Endpoint 3 (/update) - Port 80 (OTA)
+// Boot Sequence
+// -------------------------------------------------------------
+// -------------------------------------------------------------
+// HTTP API: Endpoint 3 (/update) - OVER THE AIR UPDATES
 // -------------------------------------------------------------
 static esp_err_t ota_update_handler(httpd_req_t *req) {
     esp_ota_handle_t ota_handle = 0;
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-
     if (update_partition == NULL) {
         ESP_LOGE(TAG, "Failed to find OTA partition!");
         httpd_resp_send_500(req);
@@ -249,10 +250,6 @@ static esp_err_t ota_update_handler(httpd_req_t *req) {
     httpd_resp_send_500(req);
     return ESP_FAIL;
 }
-
-// -------------------------------------------------------------
-// Boot Sequence
-// -------------------------------------------------------------
 void app_main(void) {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -279,19 +276,12 @@ void app_main(void) {
     s->set_saturation(s, 0);     
 
     // ---------------------------------------------------
-    // SERVER 1: API / CONTROL / OTA SERVER (PORT 80)
-    // ---------------------------------------------------
-    httpd_config_t config_api = HTTPD_DEFAULT_CONFIG();
-    config_api.server_port = 80;
-    config_api.ctrl_port = 32546; 
-    httpd_handle_t api_server = NULL;
+    // SERVER 1: API / CONTROL SERVER (PORT 80)
+ httpd_handle_t api_server = NULL;
     if (httpd_start(&api_server, &config_api) == ESP_OK) {
         httpd_uri_t cmd_uri = { .uri = "/control", .method = HTTP_GET, .handler = cmd_handler, .user_ctx = NULL };
-        httpd_uri_t ota_uri = { .uri = "/update", .method = HTTP_POST, .handler = ota_update_handler, .user_ctx = NULL };
-        
         httpd_register_uri_handler(api_server, &cmd_uri);
-        httpd_register_uri_handler(api_server, &ota_uri);
-        ESP_LOGI(TAG, "Control & OTA API started on Port 80");
+        ESP_LOGI(TAG, "Control API started on Port 80");
     }
 
     // ---------------------------------------------------
@@ -299,11 +289,11 @@ void app_main(void) {
     // ---------------------------------------------------
     httpd_config_t config_stream = HTTPD_DEFAULT_CONFIG();
     config_stream.server_port = 81;
-    config_stream.ctrl_port = 32547; 
+    config_stream.ctrl_port = 32547; // MUST be different from Server 1
     httpd_handle_t stream_server = NULL;
     if (httpd_start(&stream_server, &config_stream) == ESP_OK) {
         httpd_uri_t stream_uri = { .uri = "/stream", .method = HTTP_GET, .handler = stream_handler, .user_ctx = NULL };
         httpd_register_uri_handler(stream_server, &stream_uri);
-        ESP_LOGI(TAG, "Video Stream started on Port 81 - VERSION 2 WIRELESS!");
+        ESP_LOGI(TAG, "Video Stream started on Port 81");
     }
 }

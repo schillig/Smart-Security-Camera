@@ -1,102 +1,214 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ESP32 Camera Evaluation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Security Camera Dashboard</title>
     <style>
-        body { font-family: Arial; background: #1e1e1e; color: white; display: flex; padding: 20px; }
-        .controls { width: 350px; background: #2a2a2a; padding: 20px; border-radius: 8px; margin-right: 20px; overflow-y: auto; max-height: 90vh; }
-        .video-container { flex-grow: 1; background: #000; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
-        h2 { margin-top: 0; border-bottom: 1px solid #444; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-        #status-indicator { font-size: 12px; color: #888; font-weight: normal; transition: color 0.2s; }
-        .control-group { margin-bottom: 18px; }
-        label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; color: #ccc;}
-        .val-display { color: #4CAF50; font-weight: bold; }
-        input[type=range] { width: 100%; cursor: pointer; }
-        select { width: 100%; padding: 6px; background: #444; color: white; border: 1px solid #555; border-radius: 4px; cursor: pointer;}
-        iframe { width: 100%; height: 100%; flex-grow: 1; border: none; min-height: 600px; }
-        .btn-capture { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 15px;}
-        .btn-capture:hover { background: #0056b3; }
+        body {
+            background-color: #0a0a0a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+        .video-panel {
+            flex: 2;
+            background: #111;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .video-panel img {
+            width: 100%;
+            border-radius: 4px;
+            background: #000;
+        }
+        .controls-panel {
+            flex: 1;
+            background: #111;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            min-width: 300px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #FF9800;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+        .val-display {
+            float: right;
+            color: #FF9800;
+            font-weight: bold;
+        }
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+        select {
+            width: 100%;
+            padding: 5px;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .ota-box {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #FF9800;
+        }
+        .ota-btn {
+            width: 100%;
+            padding: 10px;
+            background: #FF9800;
+            color: #000;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .ota-btn:hover {
+            background: #e68a00;
+        }
+        .ota-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        #ota-progress {
+            font-size: 12px;
+            text-align: center;
+            margin-top: 8px;
+            display: none;
+        }
+        #status-indicator {
+            font-size: 0.8rem;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <h2>Tuning <span id="status-indicator">Live</span></h2>
-        
-        <button class="btn-capture" onclick="takeSnapshot()">📸 Take Snapshot</button>
-
-        <div class="control-group">
-            <label>Resolution <span id="val_framesize" class="val-display">VGA</span></label>
-            <select id="framesize" onchange="document.getElementById('val_framesize').innerText = this.options[this.selectedIndex].text; updateCam('framesize', this.value)">
-                <option value="5">QVGA (320x240)</option>
-                <option value="8" selected>VGA (640x480)</option>
-                <option value="9">SVGA (800x600)</option>
-                <option value="10">XGA (1024x768)</option>
-                <option value="11">HD (1280x720)</option>
-            </select>
+    <div class="container">
+        <div class="video-panel">
+            <h2>Live Feed <span id="status-indicator">Live</span></h2>
+            <img id="stream" src="http://192.168.50.23:1985/api/stream.mjpeg?src=front_door_cam" alt="Camera Stream">
         </div>
 
-        <div class="control-group">
-            <label>JPEG Quality <span id="val_quality" class="val-display">15</span></label>
-            <input type="range" min="10" max="63" value="15" 
-                   oninput="document.getElementById('val_quality').innerText = this.value" 
-                   onchange="updateCam('quality', this.value)">
-        </div>
+        <div class="controls-panel">
+            
+            <div class="ota-box">
+                <label style="color: #FF9800; font-weight: bold; margin-bottom: 8px;">Over-The-Air Update</label>
+                <input type="file" id="otafile" accept=".bin" style="width: 100%; margin-bottom: 10px; font-size: 12px;">
+                <button onclick="pushOTA()" id="otaBtn" class="ota-btn">Push Firmware</button>
+                <div id="ota-progress">Uploading... Please wait.</div>
+            </div>
 
-        <div class="control-group">
-            <label>Brightness <span id="val_brightness" class="val-display">0</span></label>
-            <input type="range" min="-2" max="2" value="0" 
-                   oninput="document.getElementById('val_brightness').innerText = this.value" 
-                   onchange="updateCam('brightness', this.value)">
-        </div>
+            <h2>Tuning Controls</h2>
 
-        <div class="control-group">
-            <label>Contrast <span id="val_contrast" class="val-display">0</span></label>
-            <input type="range" min="-2" max="2" value="0" 
-                   oninput="document.getElementById('val_contrast').innerText = this.value" 
-                   onchange="updateCam('contrast', this.value)">
-        </div>
+            <div class="control-group">
+                <label>Resolution <span id="val_framesize" class="val-display">VGA</span></label>
+                <select id="framesize" onchange="document.getElementById('val_framesize').innerText = this.options[this.selectedIndex].text; updateCam('framesize', this.value)">
+                    <option value="5">QVGA (320x240)</option>
+                    <option value="6">CIF (400x296)</option>
+                    <option value="8" selected>VGA (640x480)</option>
+                    <option value="9">SVGA (800x600)</option>
+                    <option value="10">XGA (1024x768)</option>
+                    <option value="11">HD (1280x720) - 720p</option>
+                    <option value="12">SXGA (1280x1024) - 1.3MP</option>
+                    <option value="13">UXGA (1600x1200) - 2MP</option>
+                    <option value="14">FHD (1920x1080) - 1080p</option>
+                    <option value="17">QXGA (2048x1536) - 3MP</option>
+                    <option value="21">QSXGA (2560x1920) - 5MP</option>
+                </select>
+            </div>
 
-        <div class="control-group">
-            <label>Saturation <span id="val_saturation" class="val-display">0</span></label>
-            <input type="range" min="-2" max="2" value="0" 
-                   oninput="document.getElementById('val_saturation').innerText = this.value" 
-                   onchange="updateCam('saturation', this.value)">
-        </div>
+            <div class="control-group">
+                <label>JPEG Quality (Lower is better) <span id="val_quality" class="val-display">15</span></label>
+                <input type="range" id="quality" min="4" max="63" value="15" onchange="document.getElementById('val_quality').innerText = this.value; updateCam('quality', this.value)">
+            </div>
 
-        <div class="control-group">
-            <label>Auto White Balance <span id="val_awb" class="val-display">On</span></label>
-            <select onchange="document.getElementById('val_awb').innerText = this.options[this.selectedIndex].text; updateCam('awb', this.value)">
-                <option value="1" selected>On</option>
-                <option value="0">Off</option>
-            </select>
-        </div>
+            <div class="control-group">
+                <label>Brightness <span id="val_brightness" class="val-display">0</span></label>
+                <input type="range" id="brightness" min="-2" max="2" value="0" onchange="document.getElementById('val_brightness').innerText = this.value; updateCam('brightness', this.value)">
+            </div>
 
-        <div class="control-group">
-            <label>Invert Vertical <span id="val_vflip" class="val-display">Off</span></label>
-            <select onchange="document.getElementById('val_vflip').innerText = this.options[this.selectedIndex].text; updateCam('vflip', this.value)">
-                <option value="0" selected>Off</option>
-                <option value="1">On</option>
-            </select>
-        </div>
+            <div class="control-group">
+                <label>Contrast <span id="val_contrast" class="val-display">0</span></label>
+                <input type="range" id="contrast" min="-2" max="2" value="0" onchange="document.getElementById('val_contrast').innerText = this.value; updateCam('contrast', this.value)">
+            </div>
 
-        <div class="control-group">
-            <label>Mirror Horizontal <span id="val_hmirror" class="val-display">Off</span></label>
-            <select onchange="document.getElementById('val_hmirror').innerText = this.options[this.selectedIndex].text; updateCam('hmirror', this.value)">
-                <option value="0" selected>Off</option>
-                <option value="1">On</option>
-            </select>
-        </div>
-    </div>
+            <div class="control-group">
+                <label>Saturation <span id="val_saturation" class="val-display">0</span></label>
+                <input type="range" id="saturation" min="-2" max="2" value="0" onchange="document.getElementById('val_saturation').innerText = this.value; updateCam('saturation', this.value)">
+            </div>
 
-    <div class="video-container">
-        <iframe src="http://127.0.0.1:1985/stream.html?src=front_door_cam"></iframe>
+            <div class="control-group">
+                <label>Vertical Flip <span id="val_vflip" class="val-display">Off</span></label>
+                <select id="vflip" onchange="document.getElementById('val_vflip').innerText = this.options[this.selectedIndex].text; updateCam('vflip', this.value)">
+                    <option value="0" selected>Off</option>
+                    <option value="1">On</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Horizontal Mirror <span id="val_hmirror" class="val-display">Off</span></label>
+                <select id="hmirror" onchange="document.getElementById('val_hmirror').innerText = this.options[this.selectedIndex].text; updateCam('hmirror', this.value)">
+                    <option value="0" selected>Off</option>
+                    <option value="1">On</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Auto White Balance (AWB) <span id="val_awb" class="val-display">On</span></label>
+                <select id="awb" onchange="document.getElementById('val_awb').innerText = this.options[this.selectedIndex].text; updateCam('awb', this.value)">
+                    <option value="0">Off</option>
+                    <option value="1" selected>On</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Auto Exposure (AEC) <span id="val_aec" class="val-display">On</span></label>
+                <select id="aec" onchange="document.getElementById('val_aec').innerText = this.options[this.selectedIndex].text; updateCam('aec', this.value)">
+                    <option value="0">Off</option>
+                    <option value="1" selected>On</option>
+                </select>
+            </div>
+
+        </div>
     </div>
 
     <script>
-function updateCam(variable, value) {
-            // We added &_t=timestamp to trick the browser into never caching the command
+        // Send hardware adjustments to the ESP32 (Port 80)
+        function updateCam(variable, value) {
+            // Random timestamp prevents the browser from caching the command
             const url = `http://192.168.50.152/control?var=${variable}&val=${value}&_t=${new Date().getTime()}`;
             
             fetch(url, { mode: 'no-cors' })
@@ -111,13 +223,37 @@ function updateCam(variable, value) {
                 })
                 .catch(error => console.error('Error:', error));
         }
-        function takeSnapshot() {
-            const a = document.createElement('a');
-            a.href = 'http://127.0.0.1:1985/api/frame.jpeg?src=front_door_cam';
-            a.download = `cam_snapshot_${new Date().getTime()}.jpg`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+
+        // Send firmware binary to the ESP32 (Port 80)
+        function pushOTA() {
+            const fileInput = document.getElementById('otafile');
+            if(fileInput.files.length === 0) { alert("Select a .bin file first!"); return; }
+            
+            const btn = document.getElementById('otaBtn');
+            const progress = document.getElementById('ota-progress');
+            
+            btn.disabled = true;
+            btn.innerText = "Flashing...";
+            progress.style.display = "block";
+            progress.innerText = "Uploading... Please wait.";
+            progress.style.color = "#aaa";
+
+            fetch('http://192.168.50.152/update', {
+                method: 'POST',
+                body: fileInput.files[0],
+                mode: 'no-cors'
+            })
+            .then(() => {
+                progress.innerText = "Success! Camera is rebooting...";
+                progress.style.color = "#4CAF50";
+                setTimeout(() => { window.location.reload(); }, 6000);
+            })
+            .catch(error => {
+                progress.innerText = "OTA Failed.";
+                progress.style.color = "red";
+                btn.disabled = false;
+                btn.innerText = "Push Firmware";
+            });
         }
     </script>
 </body>
