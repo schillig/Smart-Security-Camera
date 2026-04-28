@@ -17,7 +17,7 @@
 static const char *TAG = "SEC_CAM";
 
 #define WIFI_SSID      "WIN_fb71"
-#define WIFI_PASS      ""***""
+#define WIFI_PASS      "******"
 #define BLINK_GPIO     48
 
 #define CAM_PIN_PWDN    -1
